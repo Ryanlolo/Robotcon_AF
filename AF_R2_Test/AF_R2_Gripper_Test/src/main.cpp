@@ -156,7 +156,7 @@ void chassis_cylinder_control(){
 
 #if EN_weapon_gripper
 void weapon_gripper_control(){
-    //default contract
+    //default
     weapon_gripper_1.contract();
     weapon_gripper_1.gripper_open();
     weapon_gripper_1.electromagnet_open();
