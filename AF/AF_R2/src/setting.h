@@ -31,4 +31,16 @@
 #define back_chassis_cylinder_pin           PA_7
 #define chassis_cylinder_freq               10
 
+// HWT101CT Gyroscope (IMU)
+#define EN_HWT101CT                          1
+#define imu_rx                               PA_0
+#define imu_tx                               PA_1
+#define imu_baud                             115200
+
+// SK60p Laser Distance Sensor
+#define EN_SK60P                              1
+#define laser_rx                              PC_11
+#define laser_tx                              PC_10
+#define laser_baud                            19200
+
 #endif

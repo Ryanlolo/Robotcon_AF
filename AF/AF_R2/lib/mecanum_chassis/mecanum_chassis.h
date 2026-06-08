@@ -12,8 +12,11 @@ class mecanum_chassis{
         bool getTypeX();
         void setMaxSpeed(float speed);
         float getMaxSpeed();
+        void setTurnDeadzone(float deg);
+        float getTurnDeadzone();
 
         void move(float x, float y, float w);
+        void turnTo(float current_yaw, float target_yaw, float gain);
 
     private:
         vesc* fl;
@@ -23,6 +26,7 @@ class mecanum_chassis{
 
         bool isTypeX = true;
         float max_speed = 10000.0f;
+        float turn_deadzone = 5.0f;  // degrees - ignore yaw error smaller than this
 };
 
 #endif

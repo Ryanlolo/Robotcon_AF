@@ -5,6 +5,13 @@
 #include "vesc.h"
 #include "mecanum_chassis.h"
 
+#if EN_HWT101CT
+#include "HWT101CT.h"
+#endif
+#if EN_SK60P
+#include "SK60p_Mbed.h"
+#endif
+
 int mode = 0;   // 0 -> manual mode; 1 -> auto mode
 
 #if EN_PS5
@@ -25,10 +32,26 @@ DigitalOut front_chassis_cylinder(front_chassis_cylinder_pin);
 DigitalOut back_chassis_cylinder(back_chassis_cylinder_pin);
 #endif
 
+#if EN_HWT101CT
+BufferedSerial imu(imu_tx, imu_rx, imu_baud);
+HWT101CT hwt(&imu);
+float yaw_offset = 0.0f;
+#endif
+
+#if EN_SK60P
+SK60p_Mbed laser(laser_tx, laser_rx, laser_baud);
+Mutex sensor_mutex;
+uint32_t laser_distance = 0;
+Thread sensor_thread(osPriorityNormal, 4096);
+#endif
+
 int8_t x, y, w;
 
 #if EN_PS5
 Thread ps5_thread(osPriorityHigh2);
+#endif
+#if EN_SK60P
+Thread laser_thread(osPriorityNormal, 4096);
 #endif
 Thread chassis_thread(osPriorityHigh1);
 #if EN_chassis_cylinders
@@ -80,16 +103,33 @@ void chassis_control(){
     while(1){
         if(mode == 1){
             //auto mode
-            
+
         }
         else{
             // manual mode
             chassis.move(x, y, w);
         }
-        
+
         ThisThread::sleep_for(1000ms/chassis_freq);
     }
 }
+
+#if EN_SK60P
+void laser_task() {
+    laser.startContinuousAuto();
+    while (true) {
+        if (laser.available()) {
+            auto result = laser.readFrame();
+            if (result.valid) {
+                sensor_mutex.lock();
+                laser_distance = result.distance;
+                sensor_mutex.unlock();
+            }
+        }
+        ThisThread::sleep_for(10ms);
+    }
+}
+#endif
 
 #if EN_chassis_cylinders
 void chassis_cylinder_control(){
@@ -139,6 +179,15 @@ void chassis_cylinder_control(){
 #endif
 
 int main(){
+    #if EN_SK60P
+    sensor_thread.start(laser_task);
+    #endif
+
+    #if EN_HWT101CT
+    ThisThread::sleep_for(500ms);
+    yaw_offset = hwt.Get_Yaw(false);
+    #endif
+
     #if EN_PS5
     ps5_thread.start(ps5_communication);
     #endif

@@ -1,4 +1,5 @@
 #include "mecanum_chassis.h"
+#include <cmath>
 
 mecanum_chassis::mecanum_chassis(vesc* fl, vesc* fr, vesc* bl, vesc* br, bool isTypeX){
     this->fl = fl;
@@ -23,6 +24,14 @@ void mecanum_chassis::setMaxSpeed(float speed){
 
 float mecanum_chassis::getMaxSpeed(){
     return max_speed;
+}
+
+void mecanum_chassis::setTurnDeadzone(float deg){
+    turn_deadzone = deg;
+}
+
+float mecanum_chassis::getTurnDeadzone(){
+    return turn_deadzone;
 }
 
 void mecanum_chassis::move(float x, float y, float w){
@@ -65,4 +74,27 @@ void mecanum_chassis::move(float x, float y, float w){
     fr->comm_can_set_mrpm(fr_speed);
     bl->comm_can_set_mrpm(bl_speed);
     br->comm_can_set_mrpm(br_speed);
+}
+
+void mecanum_chassis::turnTo(float current_yaw, float target_yaw, float gain) {
+    float error = target_yaw - current_yaw;
+    while (error > 180.0f)  error -= 360.0f;
+    while (error < -180.0f) error += 360.0f;
+
+    if (fabs(error) < turn_deadzone) {
+        fl->comm_can_set_mrpm(0);
+        fr->comm_can_set_mrpm(0);
+        bl->comm_can_set_mrpm(0);
+        br->comm_can_set_mrpm(0);
+        return;
+    }
+
+    float w = error * gain;
+    if (w > max_speed)  w = max_speed;
+    if (w < -max_speed) w = -max_speed;
+
+    fl->comm_can_set_mrpm(-w);
+    fr->comm_can_set_mrpm(+w);
+    bl->comm_can_set_mrpm(-w);
+    br->comm_can_set_mrpm(+w);
 }
