@@ -1,61 +1,36 @@
 #include "root_gripper.h"
 
-root_gripper::root_gripper(DigitalOut* main_cylinder, DigitalOut* gripper_cylinder, DigitalOut* clip){
-    _main_cylinder = main_cylinder;
-    _gripper_cylinder = gripper_cylinder;
-    _clip = clip;
-} 
+root_gripper::root_gripper(DigitalOut& weapon_cylinder1, DigitalOut& weapon_cylinder2, DigitalOut& kfs_gripper, DigitalOut& clip) :
+ _weapon_cylinder1(weapon_cylinder1), _weapon_cylinder2(weapon_cylinder2), _kfs_gripper(kfs_gripper), _clip(clip) {}
 
 void root_gripper::stand_up(){
-    _main_cylinder->write(1);
+   _weapon_cylinder1.write(1);
 }
 
 void root_gripper::lay_down(){
-    _main_cylinder->write(0);   
+    _weapon_cylinder1.write(0);   
 }
 
 void root_gripper::extend(){
-    _gripper_cylinder->write(1);
+    _weapon_cylinder2.write(0);
 }
 
 void root_gripper::contract(){
-    _gripper_cylinder->write(0);
+    _weapon_cylinder2.write(1);
 }
 
 void root_gripper::clip_open(){
-    _clip->write(0);
+    _clip.write(0);
 }
 
 void root_gripper::clip_close(){
-    _clip->write(1);
+    _clip.write(1);
 }
 
-// void root_gripper::setMode(int mode){
-//     switch(mode){
-//         case 1:
-//             main_cylinder_up();
-//             ThisThread::sleep_for(main_cylinder_sleep);
-//             gripper_cylinder_up();
-//             ThisThread::sleep_for(gripper_cylinder_sleep);
-//             break;
+void root_gripper::kfs_gripper_open(){
+    _kfs_gripper.write(0);
+}
 
-//         case 2:
-//             clip_close();
-//             ThisThread::sleep_for(gripper_cylinder_sleep);
-//             break;
-
-//         case 3:
-//             gripper_cylinder_down();
-//             ThisThread::sleep_for(gripper_cylinder_sleep);
-//             break;
-//         case 4:
-//             clip_open();
-//             ThisThread::sleep_for(clip_sleep);
-//             main_cylinder_down();
-//             ThisThread::sleep_for(clip_sleep);
-//             break;
-
-//         default:
-//             break;
-//     }
-// }
+void root_gripper::kfs_gripper_close(){
+    _kfs_gripper.write(1);
+}

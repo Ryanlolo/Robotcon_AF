@@ -1,6 +1,6 @@
 #include <mbed.h>
 
-#include "setting.h"
+#include "../setting.h"
 #include "PS5.h"
 #include "vesc.h"
 #include "mecanum_chassis.h"
@@ -24,13 +24,14 @@ mecanum_chassis chassis(&motor_fl, &motor_fr, &motor_bl, &motor_br, true);
 vesc motor_lifter(lifter_id, &_can3, can_baud, Motor_type::BDUAV_5065_400KV);
 
 #if EN_root_cylinders
-DigitalOut root_stand_cylinder(root_stand_cylinder_pin);
-DigitalOut root_updown_cylinder(root_updown_cylinder_pin);
-DigitalOut root_clip_cylinder(root_clip_cylinder_pin);
-root_gripper root_gripper_1(&root_stand_cylinder, &root_updown_cylinder, &root_clip_cylinder);
+DigitalOut weapon_cylinder1(weapon_cylinder1_pin);
+DigitalOut weapon_gripper(weapon_gripper_pin);
+DigitalOut weapon_cylinder2(weapon_cylinder2_pin);
+DigitalOut kfs_gripper(kfs_gripper_pin);
+root_gripper root_gripper_1(weapon_cylinder1, weapon_cylinder2, kfs_gripper, weapon_gripper);
 #endif
 
-int8_t x = 0, y = 0, w = 0;
+int8_t x, y, w;
 
 #if EN_PS5
 Thread ps5_thread(osPriorityHigh2);
@@ -66,7 +67,7 @@ void ps5_communication(){
             w = deadzone_filter(raw_rx, PS5_deadzone);
 
             // Optional debug output
-            //printf("Raw: LX=%d LY=%d | Filtered: X=%d Y=%d W=%d\n", raw_lx, raw_ly, x, y, w);
+            // printf("Raw: LX=%d LY=%d | Filtered: X=%d Y=%d W=%d\n", raw_lx, raw_ly, x, y, w);
         }
         else{
             x = 0;
@@ -90,66 +91,73 @@ void chassis_control(){
         else{
             // manual mode
             chassis.move(x, y, w);
+
+            // printf("%d,%d,%d",x,y,w);
         }
         
-        ThisThread::sleep_for(1000ms/root_cylinders_freq);
+        ThisThread::sleep_for(1000ms/chassis_freq);
     }
 }
 
 #if EN_root_cylinders
 void root_cylinders_control(){
     // default contract
-    root_gripper_1.contract();
     root_gripper_1.lay_down();
+    root_gripper_1.extend();
     root_gripper_1.clip_open();
+    root_gripper_1.kfs_gripper_open();
 
     bool triangle = ps5Controller.isTrianglePressed();
     bool square = ps5Controller.isSquarePressed();
-    bool R1 = ps5Controller.isR1Pressed();
+    bool cross = ps5Controller.isXpressed();
+    bool circle = ps5Controller.isCirclePressed();
     bool up = ps5Controller.isUpPressed();
     bool down = ps5Controller.isDownPressed();
 
     bool stand_cylinder_flag = false;
-    bool updown_cylinder_flag = false;
+    bool extend_cylinder_flag = false;
     bool clip_cylinder_flag = false;
+    bool kfs_gripper_flag = false;
     int lifter_state = 0;
-
+    
     bool prev_triangle = false;
     bool prev_square = false;
-    bool prev_R1 = false;
+    bool prev_cross = false;
+    bool prev_circle = false;
     bool prev_Up = false;
     bool prev_Down = false;
 
     while(1){
         triangle = ps5Controller.isTrianglePressed();
         square = ps5Controller.isSquarePressed();
-        R1 = ps5Controller.isR1Pressed();
+        cross = ps5Controller.isXpressed();
+        circle = ps5Controller.isCirclePressed();
         up = ps5Controller.isUpPressed();
-        down = ps5Controller.isDownPressed();
+        down = ps5Controller.isDownPressed();  
 
         if(triangle && !prev_triangle){
-            if(updown_cylinder_flag){
+            if(clip_cylinder_flag){
+                root_gripper_1.clip_close();
+            }
+            else{
+                root_gripper_1.clip_open();
+            }
+
+            clip_cylinder_flag = !clip_cylinder_flag;
+        }
+
+        if(square && !prev_square){
+            if(extend_cylinder_flag){
                 root_gripper_1.extend();
             }
             else{
                 root_gripper_1.contract();
             }
 
-            updown_cylinder_flag = !updown_cylinder_flag;
+            extend_cylinder_flag = !extend_cylinder_flag;
         }
-
-        if(square && !prev_square){
-            if(clip_cylinder_flag){
-                root_gripper_1.clip_open();
-            }
-            else{
-                root_gripper_1.clip_close();
-            }
-
-            clip_cylinder_flag = !clip_cylinder_flag;
-        }
-
-        if(R1 && !prev_R1){
+        
+        if(cross && !prev_cross){
             if(stand_cylinder_flag){
                 root_gripper_1.stand_up();
             }
@@ -159,6 +167,18 @@ void root_cylinders_control(){
 
             stand_cylinder_flag = !stand_cylinder_flag;
         }
+
+        if(circle && !prev_circle){
+            if(kfs_gripper_flag){
+                root_gripper_1.kfs_gripper_close();
+            }
+            else{
+                root_gripper_1.kfs_gripper_open();
+            }
+
+            kfs_gripper_flag = !kfs_gripper_flag;
+        }
+
 
         if(up || down){
             if(up){
@@ -191,7 +211,8 @@ void root_cylinders_control(){
         
         prev_triangle = triangle;
         prev_square = square;
-        prev_R1 = R1;
+        prev_circle = circle;
+        prev_cross = cross;
         prev_Up = up;
         prev_Down = down;
 
