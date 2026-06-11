@@ -87,30 +87,19 @@ void chassis_control(){
 #if EN_PS5
     bool prev_l2 = false;
     bool prev_r2 = false;
+    bool slow_mode = false;
 #endif
 
     while(1){
 #if EN_PS5
-        bool l2 = ps5Controller.getL2Value() > PS5_trigger_threshold;
         bool r2 = ps5Controller.getR2Value() > PS5_trigger_threshold;
 
-        if(l2 && !prev_l2){
-            chassis_speed -= chassis_speed_step;
-            if(chassis_speed < chassis_min_speed){
-                chassis_speed = chassis_min_speed;
-            }
-            chassis.setMaxSpeed(chassis_speed);
-        }
-
         if(r2 && !prev_r2){
-            chassis_speed += chassis_speed_step;
-            if(chassis_speed > chassis_max_speed){
-                chassis_speed = chassis_max_speed;
-            }
+            slow_mode = !slow_mode;
+            chassis_speed = slow_mode ? chassis_slow_speed : chassis_max_speed;
             chassis.setMaxSpeed(chassis_speed);
         }
 
-        prev_l2 = l2;
         prev_r2 = r2;
 #endif
 
