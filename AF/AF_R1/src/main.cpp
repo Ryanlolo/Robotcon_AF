@@ -28,7 +28,7 @@ DigitalOut weapon_cylinder1(weapon_cylinder1_pin);
 DigitalOut weapon_gripper(weapon_gripper_pin);
 DigitalOut weapon_cylinder2(weapon_cylinder2_pin);
 DigitalOut kfs_gripper(kfs_gripper_pin);
-root_gripper root_gripper_1(weapon_cylinder1, weapon_cylinder2, kfs_gripper, weapon_gripper);
+root_gripper root_gripper_1(weapon_cylinder1, weapon_cylinder2, kfs_gripper, weapon_gripper, motor_lifter);
 #endif
 
 int8_t x, y, w;
@@ -81,9 +81,39 @@ void ps5_communication(){
 #endif
 
 void chassis_control(){
-    chassis.setMaxSpeed(10000.0f);
+    float chassis_speed = chassis_max_speed;
+    chassis.setMaxSpeed(chassis_speed);
+
+#if EN_PS5
+    bool prev_l2 = false;
+    bool prev_r2 = false;
+#endif
 
     while(1){
+#if EN_PS5
+        bool l2 = ps5Controller.getL2Value() > PS5_trigger_threshold;
+        bool r2 = ps5Controller.getR2Value() > PS5_trigger_threshold;
+
+        if(l2 && !prev_l2){
+            chassis_speed -= chassis_speed_step;
+            if(chassis_speed < chassis_min_speed){
+                chassis_speed = chassis_min_speed;
+            }
+            chassis.setMaxSpeed(chassis_speed);
+        }
+
+        if(r2 && !prev_r2){
+            chassis_speed += chassis_speed_step;
+            if(chassis_speed > chassis_max_speed){
+                chassis_speed = chassis_max_speed;
+            }
+            chassis.setMaxSpeed(chassis_speed);
+        }
+
+        prev_l2 = l2;
+        prev_r2 = r2;
+#endif
+
         if(mode == 1){
             //auto mode
             
@@ -106,6 +136,8 @@ void root_cylinders_control(){
     root_gripper_1.extend();
     root_gripper_1.clip_open();
     root_gripper_1.kfs_gripper_open();
+    root_gripper_1.setLifterSpeed(lifter_speed);
+    root_gripper_1.setLifterBrakeCurrent(lifter_brake_current);
 
     bool triangle = ps5Controller.isTrianglePressed();
     bool square = ps5Controller.isSquarePressed();
@@ -118,14 +150,11 @@ void root_cylinders_control(){
     bool extend_cylinder_flag = false;
     bool clip_cylinder_flag = false;
     bool kfs_gripper_flag = false;
-    int lifter_state = 0;
     
     bool prev_triangle = false;
     bool prev_square = false;
     bool prev_cross = false;
     bool prev_circle = false;
-    bool prev_Up = false;
-    bool prev_Down = false;
 
     while(1){
         triangle = ps5Controller.isTrianglePressed();
@@ -179,42 +208,12 @@ void root_cylinders_control(){
             kfs_gripper_flag = !kfs_gripper_flag;
         }
 
-
-        if(up || down){
-            if(up){
-                lifter_state = 1;
-            }
-
-            if(down){
-                lifter_state = 2;
-            }
-        }
-        else{
-            lifter_state = 0;
-            
-        }
-
-        switch(lifter_state){
-            case 0:
-                motor_lifter.comm_can_set_current_brake(7.0f);
-                break;
-            case 1:
-                motor_lifter.comm_can_set_mrpm(1000.0f);
-                break;
-            case 2:
-                motor_lifter.comm_can_set_mrpm(-1000.0f);
-                break;
-            default:
-                motor_lifter.comm_can_set_current_brake(7.0f);
-                break;
-        }
+        root_gripper_1.lifter_update(up, down);
         
         prev_triangle = triangle;
         prev_square = square;
         prev_circle = circle;
         prev_cross = cross;
-        prev_Up = up;
-        prev_Down = down;
 
         ThisThread::sleep_for(1000ms/root_cylinders_freq);
     }

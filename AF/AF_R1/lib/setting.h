@@ -26,6 +26,10 @@
 
 // chassis
 #define chassis_freq                        100
+#define chassis_max_speed                   10000.0f
+#define chassis_min_speed                   1000.0f
+#define chassis_speed_step                  1000.0f
+#define PS5_trigger_threshold               128
 
 // Cylinder control
 #define weapon_cylinder1_pin                PA_6
@@ -33,5 +37,7 @@
 #define kfs_gripper_pin                     PB_6
 #define weapon_gripper_pin                  PB_0
 #define root_cylinders_freq                 10
+#define lifter_speed                        1000.0f
+#define lifter_brake_current                7.0f
 
 #endif
